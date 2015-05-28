@@ -338,6 +338,15 @@ static int mmc_blk_issue_rq(struct mmc_queue *mq, struct request *req)
 			brq.data.flags |= MMC_DATA_WRITE;
 		}
 
+#ifdef CONFIG_MACH_VIPER
+                if (card->host && mmc_card_sd(card) &&
+                                !mmc_host_sd_present(card->host)) {
+                        printk(KERN_DEBUG "%s: Bad Request. SDcard removed.\n",
+                                        req->rq_disk->disk_name);
+                        goto err_sd_removed;
+                }
+#endif
+
 		mmc_set_data_timeout(&brq.data, card);
 
 		brq.data.sg = mq->sg;

@@ -310,6 +310,18 @@ irqreturn_t sdhci_irq_cd(int irq, void *dev_id)
 		printk(KERN_DEBUG "sdhci: card removed.\n");
 		sc->host->flags &= ~SDHCI_DEVICE_ALIVE;
 	}
+#ifdef CONFIG_MACH_VIPER
+        if (sc->host->mmc) {
+                if (detect)
+                        mmc_host_sd_set_present(sc->host->mmc);
+                else
+                        mmc_host_sd_clear_present(sc->host->mmc);
+
+                printk(KERN_DEBUG "sdhci: card present state=0x%x(%d).\n",
+                                sc->host->mmc->state,
+                                mmc_host_sd_present(sc->host->mmc));
+        }
+#endif
 	tasklet_schedule(&sc->host->card_tasklet);
 
 	return IRQ_HANDLED;
@@ -456,6 +468,10 @@ static int __devinit sdhci_s3c_probe(struct platform_device *pdev)
 	host->mmc->pm_caps = MMC_PM_KEEP_POWER | MMC_PM_IGNORE_PM_NOTIFY;
 	if (pdata->built_in)
 		host->mmc->pm_flags = MMC_PM_KEEP_POWER | MMC_PM_IGNORE_PM_NOTIFY;
+
+#ifdef CONFIG_MACH_VIPER
+        mmc_host_sd_set_present(host->mmc);
+#endif
 
 	/* to add external irq as a card detect signal */
 	if (pdata->cfg_ext_cd) {
