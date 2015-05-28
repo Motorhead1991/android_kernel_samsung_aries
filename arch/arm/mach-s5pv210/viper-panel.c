@@ -2484,9 +2484,7 @@ static const u16 SEQ_GAMMA_180_SETTING[] = {
 
 struct s5p_panel_data aries_panel_data = {
 	.seq_display_set = s6e63m0_SEQ_DISPLAY_SETTING,
-	.seq_panel_set = s6e63m0_SEQ_PANEL_SETTING,
 	.seq_etc_set = s6e63m0_SEQ_ETC_SETTING,
-	.gamma180 = SEQ_GAMMA_180_SETTING,
 	.display_on = s6e63m0_SEQ_DISPLAY_ON,
 	.display_off = s6e63m0_SEQ_DISPLAY_OFF,
 	.standby_on = s6e63m0_SEQ_STANDBY_ON,

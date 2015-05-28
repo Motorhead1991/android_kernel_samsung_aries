@@ -32,6 +32,7 @@
 #include <linux/init.h>
 #include <mach/gpio.h>
 #include <mach/hardware.h>
+#include <mach/gpio-viper.h>
 #include <plat/gpio-cfg.h>
 #include <plat/irqs.h>
 #include "aries.h"

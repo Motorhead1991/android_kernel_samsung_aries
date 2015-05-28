@@ -43,6 +43,7 @@
 #include <mach/regs-gpio.h>
 #include <mach/gpio.h>
 #include <mach/gpio-viper-settings.h>
+#include <mach/gpio-viper.h>
 #include <mach/adc.h>
 #include <mach/param.h>
 #include <mach/system.h>
@@ -944,47 +945,33 @@ static struct max8998_adc_table_data temper_table[] =  {
 };
 struct max8998_charger_callbacks *charger_callbacks;
 static enum cable_type_t set_cable_status;
-static enum acc_type_t set_acc_status;
 
 static void max8998_charger_register_callbacks(
-		struct max8998_charger_callbacks *ptr)
+                struct max8998_charger_callbacks *ptr)
 {
-	charger_callbacks = ptr;
-	if ((set_acc_status != 0) && charger_callbacks && charger_callbacks->set_acc_type)
-		charger_callbacks->set_acc_type(charger_callbacks, set_acc_status);
-	/* if there was a cable status change before the charger was
-	ready, send this now */
-	if ((set_cable_status != 0) && charger_callbacks && charger_callbacks->set_cable)
-		charger_callbacks->set_cable(charger_callbacks, set_cable_status);
+        charger_callbacks = ptr;
+        /* if there was a cable status change before the charger was
+        ready, send this now */
+        if ((set_cable_status != 0) && charger_callbacks && charger_callbacks->set_cable)
+                charger_callbacks->set_cable(charger_callbacks, set_cable_status);
 }
 
 static struct max8998_charger_data aries_charger = {
-	.register_callbacks	= &max8998_charger_register_callbacks,
-	.adc_table		= temper_table,
-	.adc_array_size		= ARRAY_SIZE(temper_table),
-	.temp_high_event_threshold	= 238,
-	.temp_high_threshold	= 229,
-	.temp_high_recovery	= 221,
-	.temp_low_recovery	= 161,
-	.temp_low_threshold	= 156,
-	.temp_high_threshold_lpm	= 229,
-	.temp_high_recovery_lpm 	= 220,
-	.temp_low_recovery_lpm		= 162,
-	.temp_low_threshold_lpm 	= 158,
-	.adc_ch_temperature	= 6,
-	.adc_ch_current	= 2,
-	.termination_curr_adc = 90,
+        .register_callbacks     = &max8998_charger_register_callbacks,
+        .adc_table              = temper_table,
+        .adc_array_size         = ARRAY_SIZE(temper_table),
 };
 
 static struct max8998_platform_data max8998_pdata = {
-	.num_regulators		= ARRAY_SIZE(aries_regulators),
-	.regulators		= aries_regulators,
-	.charger		= &aries_charger,
-	.buck1_set1		= GPIO_BUCK_1_EN_A,
-	.buck1_set2		= GPIO_BUCK_1_EN_B,
-	.buck2_set3		= GPIO_BUCK_2_EN,
-	.buck1_voltage_set	= { 1275000, 1200000, 1050000, 950000 },
-	.buck2_voltage_set	= { 1100000, 1000000 },
+        .num_regulators = ARRAY_SIZE(aries_regulators),
+        .regulators     = aries_regulators,
+        .charger        = &aries_charger,
+        /* Preloads must be in increasing order of voltage value */
+        .buck1_preload  = {950000, 1050000, 1200000, 1275000},
+        .buck2_preload  = {1000000, 1100000},
+        .set1_gpio      = GPIO_BUCK_1_EN_A,
+        .set2_gpio      = GPIO_BUCK_1_EN_B,
+        .set3_gpio      = GPIO_BUCK_2_EN,
 };
 
 struct platform_device sec_device_dpram = {
@@ -1821,7 +1808,6 @@ static struct i2c_board_info i2c_devs4[] __initdata = {
 static struct i2c_board_info i2c_devs1[] __initdata = {
 };
 
-#if defined (CONFIG_TOUCHSCREEN_QT602240) ||  defined (CONFIG_TOUCHSCREEN_MELFAS_TS) 
 /* I2C2 */
 static struct i2c_board_info i2c_devs2[] __initdata = {
 	{
@@ -1829,7 +1815,6 @@ static struct i2c_board_info i2c_devs2[] __initdata = {
 		.irq = IRQ_EINT_GROUP(3, 1),/*B_1*/
 	},
 };
-#endif
 
 #ifdef CONFIG_KEYBOARD_ADP5587
 static struct i2c_board_info i2c_devs15[] __initdata = {
@@ -1967,56 +1952,27 @@ static struct i2c_board_info i2c_devs8[] __initdata = {
 static int fsa9480_init_flag = 0;
 static bool mtp_off_status;
 
-#ifdef CONFIG_USB_ANDROID_SAMSUNG_COMPOSITE
-extern u16 askonstatus;
-void fsa9480_usb_cb(bool attached)
-#else
 static void fsa9480_usb_cb(bool attached)
-#endif
 {
-	struct usb_gadget *gadget = platform_get_drvdata(&s3c_device_usbgadget);
+        struct usb_gadget *gadget = platform_get_drvdata(&s3c_device_usbgadget);
 
-#ifdef CONFIG_USB_ANDROID_SAMSUNG_COMPOSITE
-	if ((gadget) && (askonstatus != 0xabcd)) {
-#else
-	if (gadget) {
-#endif
-		if (attached)
-			usb_gadget_vbus_connect(gadget);
-		else
-			usb_gadget_vbus_disconnect(gadget);
-	}
+        if (gadget) {
+                if (attached)
+                        usb_gadget_vbus_connect(gadget);
+                else
+                        usb_gadget_vbus_disconnect(gadget);
+        }
 
-	mtp_off_status = false;
-}
-
-static void fsa9480_usb_charger_cb(bool attached)
-{
-	set_acc_status = attached ? ACC_TYPE_USB : ACC_TYPE_NONE;
-	if (charger_callbacks && charger_callbacks->set_acc_type)
-		charger_callbacks->set_acc_type(charger_callbacks, set_acc_status);
-
-	set_cable_status = attached ? CABLE_TYPE_USB : CABLE_TYPE_NONE;
-	if (charger_callbacks && charger_callbacks->set_cable)
-		charger_callbacks->set_cable(charger_callbacks, set_cable_status);
+        set_cable_status = attached ? CABLE_TYPE_USB : CABLE_TYPE_NONE;
+        if (charger_callbacks && charger_callbacks->set_cable)
+                charger_callbacks->set_cable(charger_callbacks, set_cable_status);
 }
 
 static void fsa9480_charger_cb(bool attached)
 {
-	set_acc_status = attached ? ACC_TYPE_CHARGER : ACC_TYPE_NONE;
-	if (charger_callbacks && charger_callbacks->set_acc_type)
-		charger_callbacks->set_acc_type(charger_callbacks, set_acc_status);
-
-	set_cable_status = attached ? CABLE_TYPE_AC : CABLE_TYPE_NONE;
-	if (charger_callbacks && charger_callbacks->set_cable)
-		charger_callbacks->set_cable(charger_callbacks, set_cable_status);
-}
-
-static void fsa9480_jig_cb(bool attached)
-{
-	set_acc_status = attached ? ACC_TYPE_JIG : ACC_TYPE_NONE;
-	if (charger_callbacks && charger_callbacks->set_acc_type)
-		charger_callbacks->set_acc_type(charger_callbacks, set_acc_status);
+        set_cable_status = attached ? CABLE_TYPE_AC : CABLE_TYPE_NONE;
+        if (charger_callbacks && charger_callbacks->set_cable)
+                charger_callbacks->set_cable(charger_callbacks, set_cable_status);
 }
 
 static struct switch_dev switch_dock = {
@@ -2025,37 +1981,31 @@ static struct switch_dev switch_dock = {
 
 static void fsa9480_deskdock_cb(bool attached)
 {
-	struct usb_gadget *gadget = platform_get_drvdata(&s3c_device_usbgadget);
+        struct usb_gadget *gadget = platform_get_drvdata(&s3c_device_usbgadget);
 
-	if (attached)
-		switch_set_state(&switch_dock, 1);
-	else
-		switch_set_state(&switch_dock, 0);
+        if (attached)
+                switch_set_state(&switch_dock, 1);
+        else
+                switch_set_state(&switch_dock, 0);
 
-	if (gadget) {
-		if (attached)
-			usb_gadget_vbus_connect(gadget);
-		else
-			usb_gadget_vbus_disconnect(gadget);
-	}
+        if (gadget) {
+                if (attached)
+                        usb_gadget_vbus_connect(gadget);
+                else
+                        usb_gadget_vbus_disconnect(gadget);
+        }
 
-	mtp_off_status = false;
-
-	set_acc_status = attached ? ACC_TYPE_DESK_DOCK : ACC_TYPE_NONE;
-	if (charger_callbacks && charger_callbacks->set_acc_type)
-		charger_callbacks->set_acc_type(charger_callbacks, set_acc_status);
+        set_cable_status = attached ? CABLE_TYPE_USB : CABLE_TYPE_NONE;
+        if (charger_callbacks && charger_callbacks->set_cable)
+                charger_callbacks->set_cable(charger_callbacks, set_cable_status);
 }
 
 static void fsa9480_cardock_cb(bool attached)
 {
-	set_acc_status = attached ? ACC_TYPE_CAR_DOCK : ACC_TYPE_NONE;
-	if (charger_callbacks && charger_callbacks->set_acc_type)
-		charger_callbacks->set_acc_type(charger_callbacks, set_acc_status);
-
-	if (attached)
-		switch_set_state(&switch_dock, 2);
-	else
-		switch_set_state(&switch_dock, 0);
+        if (attached)
+                switch_set_state(&switch_dock, 2);
+        else
+                switch_set_state(&switch_dock, 0);
 }
 
 static void fsa9480_reset_cb(void)
@@ -2068,20 +2018,12 @@ static void fsa9480_reset_cb(void)
 		pr_err("Failed to register dock switch. %d\n", ret);
 }
 
-static void fsa9480_set_init_flag(void)
-{
-	fsa9480_init_flag = 1;
-}
-
 static struct fsa9480_platform_data fsa9480_pdata = {
 	.usb_cb = fsa9480_usb_cb,
-	.usb_charger_cb = fsa9480_usb_charger_cb,
 	.charger_cb = fsa9480_charger_cb,
-	.deskdock_cb = fsa9480_deskdock_cb,
+        .deskdock_cb = fsa9480_deskdock_cb,
 	.cardock_cb = fsa9480_cardock_cb,
-	.jig_cb = fsa9480_jig_cb,
 	.reset_cb = fsa9480_reset_cb,
-	.set_init_flag = fsa9480_set_init_flag,
 };
 
 static struct i2c_board_info i2c_devs7[] __initdata = {
@@ -2152,20 +2094,6 @@ static void __init max17043_gpio_init(void)
 static struct max17040_platform_data max17040_pdata = {
 	.power_supply_register = max17040_power_supply_register,
 	.power_supply_unregister = max17040_power_supply_unregister,
-#ifdef CONFIG_BATTERY_MAX17043
-	.rcomp_value = 0xB01F,	// ATHD 1%
-#else
-	.rcomp_value = 0xB000,
-#endif
-
-#ifdef CONFIG_MACH_VIPER
-	.psoc_full      = 9420, // 94.2%
-        .psoc_empty     = 30,   // 0.3%
-
-#else
-	.psoc_full	= 9340,	// 93.4%
-	.psoc_empty	= 50,	// 0.5%
-#endif
 };
 
 static struct i2c_board_info i2c_devs9[] __initdata = {
@@ -2322,52 +2250,6 @@ struct platform_device sec_device_battery = {
 	.id	= -1,
 };
 
-static int sec_switch_get_cable_status(void)
-{
-	return mtp_off_status ? CABLE_TYPE_NONE : set_cable_status;
-}
-
-static int sec_switch_get_phy_init_status(void)
-{
-	return fsa9480_init_flag;
-}
-
-static void sec_switch_set_vbus_status(u8 mode)
-{
-	if (mode == USB_VBUS_ALL_OFF)
-		mtp_off_status = true;
-
-	if (charger_callbacks && charger_callbacks->set_esafe)
-		charger_callbacks->set_esafe(charger_callbacks, mode);
-}
-
-static void sec_switch_set_usb_gadget_vbus(bool en)
-{
-	struct usb_gadget *gadget = platform_get_drvdata(&s3c_device_usbgadget);
-
-	if (gadget) {
-		if (en)
-			usb_gadget_vbus_connect(gadget);
-		else
-			usb_gadget_vbus_disconnect(gadget);
-	}
-}
-
-static struct sec_switch_platform_data sec_switch_pdata = {
-	.set_vbus_status = sec_switch_set_vbus_status,
-	.set_usb_gadget_vbus = sec_switch_set_usb_gadget_vbus,
-	.get_cable_status = sec_switch_get_cable_status,
-	.get_phy_init_status = sec_switch_get_phy_init_status,
-};
-
-struct platform_device sec_device_switch = {
-	.name	= "sec_switch",
-	.id	= 1,
-	.dev	= {
-		.platform_data	= &sec_switch_pdata,
-	}
-};
-
 static struct platform_device sec_device_rfkill = {
 	.name	= "bt_rfkill",
 	.id	= -1,
@@ -2495,85 +2377,32 @@ static struct platform_device sec_device_jack = {
 #define S5PV210_PS_HOLD_CONTROL_REG (S3C_VA_SYS+0xE81C)
 static void aries_power_off(void)
 {
-	int mode = REBOOT_MODE_NONE;
-	int phone_wait_cnt = 0;
-	uint via_ps_hold;
+        while (1) {
+                /* Check reboot charging */
+                if (set_cable_status) {
+                        /* watchdog reset */
+                        pr_info("%s: charger connected, rebooting\n", __func__);
+                        writel(3, S5P_INFORM6);
+                        arch_reset('r', NULL);
+                        pr_crit("%s: waiting for reset!\n", __func__);
+                        while (1);
+                }
 
-	if (HWREV < 2)
-		via_ps_hold = GPIO_VIA_PS_HOLD_OFF_REV01;
-	else
-		via_ps_hold = GPIO_VIA_PS_HOLD_OFF;
+                /* wait for power button release */
+                if (gpio_get_value(GPIO_nPOWER)) {
+                        pr_info("%s: set PS_HOLD low\n", __func__);
 
-	/* prevent phone reset when AP off */
-	gpio_set_value(GPIO_PHONE_ON, 0);
+                        /* PS_HOLD high  PS_HOLD_CONTROL, R/W, 0xE010_E81C */
+                        writel(readl(S5PV210_PS_HOLD_CONTROL_REG) & 0xFFFFFEFF,
+                               S5PV210_PS_HOLD_CONTROL_REG);
 
-	gpio_request(GPIO_nPOWER, "GPIO_nPOWER");
-	gpio_direction_input(GPIO_nPOWER);
+                        pr_crit("%s: should not reach here!\n", __func__);
+                }
 
-	gpio_request(GPIO_PHONE_ACTIVE, "GPIO_PHONE_ACTIVE");
-	gpio_direction_input(GPIO_PHONE_ACTIVE);
-
-	/* confirm phone off */
-	while (1) {
-		if (gpio_get_value(GPIO_PHONE_ACTIVE)) {
-			if (phone_wait_cnt > 5) {
-				pr_info("%s: Try to Turn Phone Off\n", __func__);
-				gpio_set_value(GPIO_CP_RST, 0);
-				gpio_set_value(via_ps_hold, 1);
-			}
-			if (phone_wait_cnt > 7) {
-				pr_crit("%s: PHONE OFF Failed\n", __func__);
-				break;
-			}
-			phone_wait_cnt++;
-			msleep(1000);
-		} else {
-			pr_info("%s: PHONE OFF Success\n", __func__);
-			break;
-		}
-	}
-
-	/* set VIA, LTE off again */
-	gpio_set_value(GPIO_CP_RST, 0);
-	gpio_set_value(via_ps_hold, 1);
-
-	/* Change this API call just before power-off to take the dump. */
-	kernel_sec_clear_upload_magic_number();
-
-	/* clear Silent reset check flag */
-	writel(readl(S5P_INFORM6) & 0xFFFF00FF, S5P_INFORM6);
-
-	while (1) {
-		/* Check reboot charging */
-		if (charger_callbacks &&
-		    charger_callbacks->get_vdcin &&
-		    charger_callbacks->get_vdcin(charger_callbacks)) {
-			/* watchdog reset */
-			pr_info("%s: charger connected, rebooting\n", __func__);
-			mode = REBOOT_MODE_CHARGING;
-			if (sec_set_param_value)
-				sec_set_param_value(__REBOOT_MODE, &mode);
-			kernel_sec_hw_reset(1);
-			arch_reset('r', NULL);
-			pr_crit("%s: waiting for reset!\n", __func__);
-			while (1);
-		}
-
-		/* wait for power button release */
-		if (gpio_get_value(GPIO_nPOWER)) {
-			pr_info("%s: set PS_HOLD low\n", __func__);
-
-			/* PS_HOLD high  PS_HOLD_CONTROL, R/W, 0xE010_E81C */
-			writel(readl(S5PV210_PS_HOLD_CONTROL_REG) & 0xFFFFFEFF,
-			       S5PV210_PS_HOLD_CONTROL_REG);
-
-			pr_crit("%s: should not reach here!\n", __func__);
-		}
-
-		/* if power button is not released, wait and check TA again */
-		pr_info("%s: PowerButton is not released.\n", __func__);
-		mdelay(1000);
-	}
+                /* if power button is not released, wait and check TA again */
+                pr_info("%s: PowerButton is not released.\n", __func__);
+                mdelay(1000);
+        }
 }
 
 
@@ -2984,38 +2813,6 @@ static struct platform_device watchdog_device = {
 	.id = -1,
 };
 
-/* UMS */
-static struct usb_mass_storage_lun_data luns_data[] = {
-	[0] = {
-		.filename	= NULL,
-		.ro 		= 1,
-		.removable	= 1,
-		.cdrom 		= 1,
-	},
-	[1] = {
-		.filename	= NULL,
-		.ro 		= 0,
-		.removable	= 1,
-		.cdrom 		= 0,
-	}
-};
-
-static struct usb_mass_storage_platform_data ums_pdata = {
-	.vendor			= "SAMSUNG",
-	.product		= "UMS",
-	.release		= 1,
-	.nluns			= 2,
-	.luns			= luns_data,
-};
-
-struct platform_device viper_usb_mass_storage = {
-	.name	= "usb_mass_storage",
-	.id	= -1,
-	.dev	= {
-		.platform_data = &ums_pdata,
-	},
-};
-
 static struct platform_device *aries_devices[] __initdata = {
 	&watchdog_device,
 #ifdef CONFIG_FIQ_DEBUGGER
@@ -3096,7 +2893,7 @@ static struct platform_device *aries_devices[] __initdata = {
 #ifdef CONFIG_USB_ANDROID
 	&s3c_device_android_usb,
 #ifdef CONFIG_USB_ANDROID_MASS_STORAGE
-	&viper_usb_mass_storage,
+        &s3c_device_usb_mass_storage,
 #endif
     &sec_device_dpram,
 #ifdef CONFIG_USB_ANDROID_RNDIS
@@ -3123,8 +2920,6 @@ static struct platform_device *aries_devices[] __initdata = {
 #ifdef CONFIG_KEYPAD_CYPRESS_TOUCH
 	&s3c_device_i2c10,
 #endif
-	&sec_device_switch,  // samsung switch driver
-
 #ifdef CONFIG_S5PV210_POWER_DOMAIN
 	&s5pv210_pd_audio,
 	&s5pv210_pd_cam,
@@ -3150,7 +2945,6 @@ static struct platform_device *aries_devices[] __initdata = {
 	&sec_device_btsleep,
 	&ram_console_device,
 
-	&s5p_device_ace,
 #ifdef CONFIG_SND_S5P_RP
 	&s5p_device_rp,
 #endif
@@ -3363,7 +3157,7 @@ static void __init aries_machine_init(void)
 	/* accel sensor */
 
 	i2c_register_board_info(5, i2c_devs5, ARRAY_SIZE(i2c_devs5));
-	
+
 	max8998_gpio_init();
 	i2c_register_board_info(6, i2c_devs6, ARRAY_SIZE(i2c_devs6));
 #ifdef CONFIG_KEYPAD_CYPRESS_TOUCH
@@ -3520,6 +3314,9 @@ void otg_phy_init(void)
 }
 EXPORT_SYMBOL(otg_phy_init);
 
+/* USB Control request data struct must be located here for DMA transfer */
+struct usb_ctrlrequest usb_ctrl __attribute__((aligned(64)));
+
 /* OTG PHY Power Off */
 void otg_phy_off(void)
 {
@@ -3643,7 +3440,7 @@ MACHINE_START(SMDKC110, "SMDKC110")
 #endif
 MACHINE_END
 
-MACHINE_START(VIPER, "SMDKC110")
+MACHINE_START(VIPER, "viper")
 	.phys_io	= S3C_PA_UART & 0xfff00000,
 	.io_pg_offst	= (((u32)S3C_VA_UART) >> 18) & 0xfffc,
 	.boot_params	= S5P_PA_SDRAM + 0x100,
