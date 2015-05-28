@@ -62,6 +62,13 @@ config INPUT_BMA023
 	tristate "Bosch Sensortec BMA023 Acceleration Sensor"
 	depends on I2C
 
+config INPUT_K3DH
+        tristate "STMicro K3DH Acceleration Sensor"
+        depends on I2C
+        default n
+        help
+          Driver for STMicro K3DH accelerometer - digital motion sensor.
+
 config INPUT_KR3DH
         depends on I2C
         tristate "KR3DH driver for s5pc11x"
