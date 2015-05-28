@@ -301,6 +301,14 @@ int gpio_event_input_func(struct gpio_event_input_devs *input_devs,
 				ret = -EINVAL;
 				goto err_bad_keymap;
 			}
+#ifdef CONFIG_MACH_VIPER
+                        if(HWREV>=4){
+                                if(di->keymap[i].code==114)
+                                        di->keymap[i].code=115;
+                                else if(di->keymap[i].code==115)
+                                        di->keymap[i].code=114;
+                        }
+#endif
 			input_set_capability(input_devs->dev[dev], di->type,
 					     di->keymap[i].code);
 			ds->key_state[i].ds = ds;
