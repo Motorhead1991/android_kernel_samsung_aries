@@ -45,6 +45,10 @@
 #include <mach/gpio-aries.h>
 #endif
 
+#ifdef CONFIG_MACH_VIPER
+#include <mach/gpio-viper.h>
+#endif
+
 #include <mach/hardware.h>
 #include <mach/map.h>
 #include <mach/regs-clock.h>
