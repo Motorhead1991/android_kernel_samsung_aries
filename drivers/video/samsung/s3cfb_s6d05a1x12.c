@@ -29,6 +29,10 @@
 #include <plat/gpio-cfg.h>
 #include <plat/regs-fb.h>
 #include <linux/earlysuspend.h>
+
+#ifdef CONFIG_MACH_VIPER
+#include <mach/gpio-viper.h>
+#endif
  
 #define SLEEPMSEC		0x1000
 #define ENDDEF			0x2000
