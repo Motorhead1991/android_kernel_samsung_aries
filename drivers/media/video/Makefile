@@ -188,3 +188,5 @@ obj-$(CONFIG_ARCH_OMAP)	+= omap/
 EXTRA_CFLAGS += -Idrivers/media/dvb/dvb-core
 EXTRA_CFLAGS += -Idrivers/media/dvb/frontends
 EXTRA_CFLAGS += -Idrivers/media/common/tuners
+
+obj-$(CONFIG_VIDEO_ISX005)      += isx005.o
