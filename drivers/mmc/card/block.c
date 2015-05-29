@@ -498,6 +498,19 @@ static int mmc_blk_issue_rq(struct mmc_queue *mq, struct request *req)
 
 	return 1;
 
+#ifdef CONFIG_MACH_VIPER
+ err_sd_removed:
+        spin_lock_irq(&md->lock);
+#if 0
+        while(ret)
+                ret = __blk_end_request(req, -EIO, blk_rq_cur_bytes(req));
+#else
+        __blk_end_request_all(req, -EIO);
+#endif
+        spin_unlock_irq(&md->lock);
+        mmc_release_host(card->host);
+        return 0;
+#endif
  cmd_err:
  	/*
  	 * If this is an SD card and we're writing, we can first
