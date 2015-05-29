@@ -39,9 +39,14 @@
 #endif
 #include "s3cfb.h"
 
+#ifdef CONFIG_FB_S3C_MDNIE
+#include <mach/regs-clock.h>
+#endif
+
 #ifdef CONFIG_MACH_ARIES
 #include "logo_rgb24_wvga_portrait.h"
-#include <mach/regs-clock.h>
+#elif defined(CONFIG_MACH_VIPER)
+#include "logo_rgb24_hvga_portrait.h"   /* 320x480 */
 #endif
 
 struct s3c_platform_fb *to_fb_plat(struct device *dev)
